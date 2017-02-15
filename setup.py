@@ -14,7 +14,7 @@ with open(os.path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
 setup(name="robotframework-amqp",
-      version="0.1",
+      version="0.0.2",
       description="AMQP library for usage in robotframework tests",
       long_description=long_description,
       author="Costin Radu",
@@ -35,7 +35,7 @@ setup(name="robotframework-amqp",
           "Natural Language :: English",
           "Operating System :: OS Independent",
           "Programming Language :: Python :: 2",
-          "Programming Language :: Python :: 2.7"
+          "Programming Language :: Python :: 2.7",
           "Topic :: Software Development :: Testing",
       ],
       keywords="robotframework testing amqp",
