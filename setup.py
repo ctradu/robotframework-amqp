@@ -23,7 +23,8 @@ setup(name="robotframework-amqp",
       platforms="any",
       include_package_data=True,
       install_requires=[
-          "puka"
+          "pika",
+          "robotframework"
       ],
       extras_require={"test": ["tox", "pylint"]},
       packages=find_packages(),

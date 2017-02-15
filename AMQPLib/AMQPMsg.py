@@ -1,7 +1,8 @@
 """
 Connect to an AMQP server and sent messages to a certain queue
 """
-import puka
+import pika
+from robot.api import logger
 
 
 def _receive_callback(chan, method, properties, body):
@@ -13,12 +14,15 @@ class AMQPMsg(object):
     """
     Connect to an AMQP server and receive messages or send messages in Robotframework
     """
-    def __init__(self):
+    def __init__(self, heartbeat=10, timeout=5):
         self.amqp_addr = ""
-        self.amqp_client = None
+        self.amqp_connection = None
+        self.amqp_channel = None
         self.exchange = ""
         self.routing_key = ""
         self.queue = ""
+        # self.amqp_heartbeat = heartbeat
+        self.amqp_timeout = timeout
 
     def init_amqp_connection(self, amqp_host, amqp_port, amqp_user, amqp_pass, amqp_vhost):
         """
@@ -36,9 +40,10 @@ class AMQPMsg(object):
                                                                                port=amqp_port,
                                                                                vhost=amqp_vhost)
 
-        self.amqp_client = puka.Client(self.amqp_addr)
-        amqp_promise = self.amqp_client.connect()
-        self.amqp_client.wait(amqp_promise)
+        logger.debug("AMQP connect to: {}".format(self.amqp_addr))
+        params = pika.URLParameters(self.amqp_addr)
+        self.amqp_connection = pika.BlockingConnection(parameters=params)
+        self.amqp_channel = self.amqp_connection.channel()
 
     def close_amqp_connection(self):
         """
@@ -49,8 +54,7 @@ class AMQPMsg(object):
         After tests
             close amqp connection
         """
-        amqp_promise = self.amqp_client.close()
-        self.amqp_client.wait(amqp_promise)
+        self.amqp_connection.close()
 
     def set_amqp_destination(self, exchange, routing_key):
         """
@@ -64,12 +68,12 @@ class AMQPMsg(object):
 
     def set_amqp_queue(self, amqp_queue):
         """
-        Set queue to listen to for the subsequent get_amqp_msg calls
+        Set queue to listen to and declare it on AMQP server for the subsequent get_amqp_msg calls
 
-        :param amqp_queue:
-        :return:
+        :param amqp_queue string:
         """
         self.queue = amqp_queue
+        self.amqp_channel.queue_declare(queue=self.queue)
 
     def send_amqp_msg(self, msg, exchange=None, routing_key=None):
         """
@@ -81,10 +85,13 @@ class AMQPMsg(object):
         """
         amqp_exchange = exchange if exchange is not None else self.exchange
         amqp_routing_key = routing_key if routing_key is not None else self.routing_key
-        promise = self.amqp_client.basic_publish(exchange=amqp_exchange,
-                                                 routing_key=amqp_routing_key,
-                                                 body=msg)
-        self.amqp_client.wait(promise)
+
+        logger.debug("AMQP send ---> ({} / {})".format(amqp_exchange, amqp_routing_key))
+        logger.debug("AMQP msg to send: {}".format(msg))
+
+        self.amqp_channel.basic_publish(exchange=amqp_exchange,
+                                        routing_key=amqp_routing_key,
+                                        body=msg)
 
     def get_amqp_msg(self, msg_number=1, queue=None):
         """
@@ -95,15 +102,18 @@ class AMQPMsg(object):
         """
 
         queue_name = queue if queue is not None else self.queue
-        consume_promise = self.amqp_client.basic_consume(queue=queue_name)
         received_messages = []
-        for _ in xrange(0, msg_number):
-            msg = self.amqp_client.wait(consume_promise)
-            print("received: {}".format(msg))
-            received_messages.append(msg)
-            self.amqp_client.basic_ack(msg)
 
-        promise = self.amqp_client.basic_cancel(consume_promise)
-        self.amqp_client.wait(promise)
+        # variant with basic_get
+        for ev_method, ev_prop, ev_body in self.amqp_channel.consume(self.queue_name,
+                                                                     inactivity_timeout=self.amqp_timeout):
+            if ev_method:
+                logger.debug("AMQP received <-- {}".format(ev_body))
+                self.amqp_channel.basic_ack(ev_method.delivery_tag)
+                received_messages.append(ev_body)
+            if ev_method.delivery_tag == msg_number:
+                break
 
+        requeued_messages = self.amqp_channel.cancel()
+        logger.debug("AMQP requeued after {} received: {}".format(msg_number, requeued_messages))
         return received_messages
