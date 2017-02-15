@@ -1,0 +1,6 @@
+build/
+dist/
+
+*.pyc
+.tox
+robotframework_amqp.egg-info
