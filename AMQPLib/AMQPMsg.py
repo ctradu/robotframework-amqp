@@ -9,7 +9,7 @@ def _receive_callback(chan, method, properties, body):
     return body
 
 
-class AmqpMsg(object):
+class AMQPMsg(object):
     """
     Connect to an AMQP server and receive messages or send messages in Robotframework
     """

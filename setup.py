@@ -19,14 +19,13 @@ setup(name="robotframework-amqp",
       long_description=long_description,
       author="Costin Radu",
       license="MIT",
-      py_modules=["AMQPSend"],
       zip_safe=False,
       platforms="any",
       include_package_data=True,
       install_requires=[
           "puka"
       ],
-      # extras_require={"test": ["tox", "pytest"]},
+      extras_require={"test": ["tox", "pylint"]},
       packages=find_packages(),
       classifiers=[
           "Development Status :: 3 - Alpha",
